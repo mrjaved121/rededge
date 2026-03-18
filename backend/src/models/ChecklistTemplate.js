@@ -1,0 +1,34 @@
+const mongoose = require('mongoose');
+
+const checklistStepSchema = new mongoose.Schema({
+  number: { type: Number, required: true },
+  title: { type: String, required: true },
+  description: { type: String, default: '' },
+  requiresPhoto: { type: Boolean, default: false },
+});
+
+const checklistTemplateSchema = new mongoose.Schema(
+  {
+    systemType: {
+      type: String,
+      enum: [
+        'hemisphere_vr1000_dozer',
+        'hemisphere_vr1000_excavator',
+        'stonex_stxdig_excavator',
+        'stonex_stxdig_dozer',
+        'other',
+      ],
+      required: true,
+      unique: true,
+    },
+    name: { type: String, required: true },
+    steps: [checklistStepSchema],
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model('ChecklistTemplate', checklistTemplateSchema);
