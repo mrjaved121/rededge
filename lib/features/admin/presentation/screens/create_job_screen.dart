@@ -33,6 +33,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   UserEntity? _selectedInstaller;
   DateTime _scheduledDate = DateTime.now().add(const Duration(days: 1));
   bool _isLoading = false;
+  bool _isLoadingTemplate = false;
   String? _errorMessage;
 
   // Custom steps defined by admin
@@ -144,6 +145,50 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
     );
   }
 
+  Future<void> _loadTemplateForSystem(String systemType) async {
+    setState(() => _isLoadingTemplate = true);
+    try {
+      final response = await getIt<ApiClient>().getChecklist(systemType);
+      final data = response.data as Map<String, dynamic>;
+      final rawSteps = data['steps'] as List<dynamic>? ?? [];
+
+      // Dispose old step controllers
+      for (final s in _steps) {
+        s.titleCtrl.dispose();
+        s.descCtrl.dispose();
+      }
+      _steps.clear();
+
+      for (final s in rawSteps) {
+        final map = s as Map<String, dynamic>;
+        _steps.add(_StepDraft(
+          title: (map['title'] as String?) ?? '',
+          description: (map['description'] as String?) ?? '',
+          requiresPhoto: (map['requiresPhoto'] as bool?) ?? false,
+          section: (map['section'] as String?) ?? '',
+          inputType: (map['inputType'] as String?) ?? 'checkbox',
+          inputLabel: (map['inputLabel'] as String?) ?? '',
+          options: (map['options'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [],
+        ));
+      }
+
+      if (_steps.isEmpty) {
+        _steps.add(_StepDraft(title: '', description: '', requiresPhoto: true));
+      }
+
+      if (mounted) setState(() => _isLoadingTemplate = false);
+    } catch (_) {
+      // No template found — keep existing steps or add a blank one
+      if (_steps.isEmpty) {
+        _steps.add(_StepDraft(title: '', description: '', requiresPhoto: true));
+      }
+      if (mounted) setState(() => _isLoadingTemplate = false);
+    }
+  }
+
   Future<void> _createJob() async {
     final title = _titleController.text.trim();
     final location = _locationController.text.trim();
@@ -185,6 +230,10 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
               'title': e.value.titleCtrl.text.trim(),
               'description': e.value.descCtrl.text.trim(),
               'requiresPhoto': e.value.requiresPhoto,
+              'section': e.value.section,
+              'inputType': e.value.inputType,
+              'inputLabel': e.value.inputLabel,
+              'options': e.value.options,
             })
         .toList();
 
@@ -279,6 +328,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                           onChanged: (v) {
                             if (v != null) {
                               setState(() => _selectedSystem = v);
+                              _loadTemplateForSystem(v);
                             }
                           },
                         ),
@@ -371,31 +421,44 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
             _buildSectionLabel('Assign to Installer'),
             const SizedBox(height: AppSpacing.sm),
             installersAsync.when(
-              data: (installers) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<UserEntity?>(
-                    value: _selectedInstaller,
-                    isExpanded: true,
-                    hint: const Text('Select an installer'),
-                    items: [
-                      const DropdownMenuItem<UserEntity?>(
-                        value: null,
-                        child: Text('Unassigned'),
+              data: (installers) => Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                        border: Border.all(color: AppColors.cardBorder),
                       ),
-                      ...installers.map((u) => DropdownMenuItem<UserEntity?>(
-                            value: u,
-                            child: Text('${u.name} (${u.email})'),
-                          )),
-                    ],
-                    onChanged: (v) => setState(() => _selectedInstaller = v),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<UserEntity?>(
+                          value: _selectedInstaller,
+                          isExpanded: true,
+                          hint: const Text('Select an installer'),
+                          items: [
+                            const DropdownMenuItem<UserEntity?>(
+                              value: null,
+                              child: Text('Unassigned'),
+                            ),
+                            ...installers.map((u) => DropdownMenuItem<UserEntity?>(
+                                  value: u,
+                                  child: Text('${u.name} (${u.email})'),
+                                )),
+                          ],
+                          onChanged: (v) => setState(() => _selectedInstaller = v),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => context.push('/admin/installers'),
+                    icon: const Icon(Icons.person_add,
+                        color: AppColors.primary, size: 28),
+                    tooltip: 'Manage installers',
+                  ),
+                ],
               ),
               loading: () => const Center(
                 child: Padding(
@@ -447,6 +510,15 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                   child: Text('Installation Steps',
                       style: AppTextStyles.headlineSmall),
                 ),
+                if (_isLoadingTemplate)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 TextButton.icon(
                   onPressed: _addStep,
                   icon: const Icon(Icons.add, size: 18),
@@ -456,6 +528,17 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                 ),
               ],
             ),
+            if (_selectedSystem != null && _steps.isNotEmpty && _steps.first.section.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  '${_steps.length} steps loaded from template',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.completed,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             const SizedBox(height: AppSpacing.sm),
 
             ...List.generate(_steps.length, (i) => _buildStepEditor(i)),
@@ -840,9 +923,7 @@ class _LocationSearchFieldState extends State<_LocationSearchField> {
           focusNode: _focusNode,
           style: AppTextStyles.bodyLarge,
           decoration: _inputDecoration(
-            _placesEnabled
-                ? 'Search location…'
-                : widget.locationHint,
+            _placesEnabled ? 'Search location…' : widget.locationHint,
             Icons.location_on_outlined,
           ),
           onChanged: _placesEnabled ? _onChanged : null,
@@ -856,8 +937,7 @@ class _LocationSearchFieldState extends State<_LocationSearchField> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _predictions.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1),
+              separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final pred = _predictions[i];
                 final main = (pred['structured_formatting']
@@ -865,8 +945,8 @@ class _LocationSearchFieldState extends State<_LocationSearchField> {
                     pred['description'] as String? ??
                     '';
                 final secondary = (pred['structured_formatting']
-                        as Map<String, dynamic>?)?['secondary_text']
-                    as String? ??
+                            as Map<String, dynamic>?)?['secondary_text']
+                        as String? ??
                     '';
                 return ListTile(
                   dense: true,
@@ -906,11 +986,19 @@ class _StepDraft {
   final TextEditingController titleCtrl;
   final TextEditingController descCtrl;
   bool requiresPhoto;
+  String section;
+  String inputType;
+  String inputLabel;
+  List<String> options;
 
   _StepDraft({
     required String title,
     required String description,
     this.requiresPhoto = true,
+    this.section = '',
+    this.inputType = 'checkbox',
+    this.inputLabel = '',
+    this.options = const [],
   })  : titleCtrl = TextEditingController(text: title),
         descCtrl = TextEditingController(text: description);
 }

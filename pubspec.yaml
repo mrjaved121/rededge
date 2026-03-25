@@ -46,6 +46,10 @@ dependencies:
   get_it: ^8.0.0
   geocoding: ^3.0.0
 
+  # PDF
+  pdf: ^3.11.1
+  printing: ^5.13.3
+
   # Code Generation Annotations
   freezed_annotation: ^2.4.1
   json_annotation: ^4.9.0
@@ -64,6 +68,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    # - assets/images/
-    # - assets/icons/
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/

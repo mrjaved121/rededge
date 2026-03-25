@@ -57,6 +57,11 @@ class JobListScreen extends ConsumerWidget {
         ],
       ),
       bottomNavigationBar: const AppBottomNav(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/jobs/create'),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 

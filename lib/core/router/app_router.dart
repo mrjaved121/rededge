@@ -15,18 +15,43 @@ import 'package:red_edge_app/features/jobs/presentation/screens/job_list_screen.
 import 'package:red_edge_app/features/photos/presentation/screens/camera_screen.dart';
 import 'package:red_edge_app/features/photos/presentation/screens/photo_review_screen.dart';
 import 'package:red_edge_app/features/settings/presentation/screens/settings_screen.dart';
+import 'package:red_edge_app/core/constants/app_colors.dart';
+
+/// Bridges Riverpod auth state changes → GoRouter.refresh via ChangeNotifier.
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier(Ref ref) {
+    ref.listen<AuthState>(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final refreshNotifier = _AuthRefreshNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/welcome',
+    initialLocation: '/splash',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
-      // While checking stored token, stay on current page
-      if (authState.isInitializing) return null;
+      final authState = ref.read(authProvider);
+      final path = state.uri.path;
+
+      // While checking stored token, show splash
+      if (authState.isInitializing) {
+        return path == '/splash' ? null : '/splash';
+      }
+
+      // Done initializing — leave splash
+      if (path == '/splash') {
+        if (authState.isLoggedIn) {
+          final user = authState.user;
+          if (user != null && user.isAdmin) return '/admin';
+          return '/jobs';
+        }
+        return '/welcome';
+      }
 
       final isLoggedIn = authState.isLoggedIn;
-      final path = state.uri.path;
       final isAuthRoute =
           path == '/welcome' || path == '/login' || path == '/signup';
 
@@ -39,6 +64,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Splash — neutral loading shown during auth check
+      GoRoute(
+        path: '/splash',
+        pageBuilder: (ctx, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const _SplashScreen(),
+          transitionsBuilder: _fadeTransition,
+        ),
+      ),
+
       // Welcome / Role Selection
       GoRoute(
         path: '/welcome',
@@ -109,6 +144,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Admin full-screen routes
       GoRoute(
         path: '/admin/create-job',
+        pageBuilder: (ctx, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const CreateJobScreen(),
+          transitionsBuilder: _slideUpTransition,
+        ),
+      ),
+      // Installer create-job route (reuses same screen)
+      GoRoute(
+        path: '/jobs/create',
         pageBuilder: (ctx, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const CreateJobScreen(),
@@ -228,4 +272,85 @@ Widget _slideUpTransition(
     ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
     child: child,
   );
+}
+
+/// Neutral splash shown while auth state is being resolved on cold start.
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primary,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Logo container — replace child with Image.asset when logo is available
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'RED',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 4,
+                        height: 1,
+                      ),
+                    ),
+                    Text(
+                      'EDGE',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 4,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            const Text(
+              'Machine Guidance Installation',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 32),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

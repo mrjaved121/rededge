@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_text_styles.dart';
@@ -15,6 +16,7 @@ import '../../../jobs/domain/entities/photo_entity.dart';
 import '../../../jobs/domain/entities/step_entity.dart';
 import '../../../jobs/domain/repositories/job_repository.dart';
 import '../../../jobs/presentation/providers/job_provider.dart';
+import '../../../jobs/presentation/services/pdf_report_service.dart';
 import '../../../jobs/presentation/widgets/job_progress_bar.dart';
 import '../providers/admin_provider.dart';
 
@@ -46,6 +48,26 @@ class _AdminJobDetailContent extends ConsumerWidget {
 
   const _AdminJobDetailContent({required this.job});
 
+  Future<void> _generateReport(BuildContext context, JobEntity job) async {
+    try {
+      final pdfBytes = await PdfReportService.generateJobReport(job);
+      if (!context.mounted) return;
+      await Printing.layoutPdf(
+        onLayout: (_) => pdfBytes,
+        name: '${job.title.replaceAll(RegExp(r'[^\w\s]'), '')}_Report',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate report: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
@@ -66,6 +88,8 @@ class _AdminJobDetailContent extends ConsumerWidget {
                 onSelected: (value) {
                   if (value == 'edit') {
                     context.push('/admin/edit-job/${job.id}');
+                  } else if (value == 'report') {
+                    _generateReport(context, job);
                   }
                 },
                 itemBuilder: (_) => [
@@ -75,6 +99,16 @@ class _AdminJobDetailContent extends ConsumerWidget {
                       leading:
                           Icon(Icons.edit, color: AppColors.primary, size: 20),
                       title: Text('Edit Job'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'report',
+                    child: ListTile(
+                      leading:
+                          Icon(Icons.picture_as_pdf, color: AppColors.primary, size: 20),
+                      title: Text('Generate Report'),
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -434,7 +468,8 @@ class _AdminStepCard extends StatelessWidget {
                               : (photo.thumbnailUrl ?? photo.remoteUrl) != null
                                   ? CachedNetworkImage(
                                       imageUrl: _buildThumbnailUrl(
-                                          photo.thumbnailUrl ?? photo.remoteUrl!),
+                                          photo.thumbnailUrl ??
+                                              photo.remoteUrl!),
                                       fit: BoxFit.cover,
                                       placeholder: (ctx, url) => const Center(
                                         child: SizedBox(
@@ -535,7 +570,7 @@ class _AdminStepCard extends StatelessWidget {
                                 color: Colors.white54, size: 48),
                   ),
                   // GPS + address info
-                  if (photo.hasGps) ...[  
+                  if (photo.hasGps) ...[
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
@@ -558,7 +593,7 @@ class _AdminStepCard extends StatelessWidget {
                             ],
                           ),
                           if (photo.address != null &&
-                              photo.address!.isNotEmpty) ...[  
+                              photo.address!.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,

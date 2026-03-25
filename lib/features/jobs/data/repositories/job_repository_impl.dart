@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:hive/hive.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/network_info.dart';
 import '../../../../core/storage/hive_service.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../domain/entities/job_entity.dart';
@@ -12,8 +13,13 @@ import '../../domain/repositories/job_repository.dart';
 
 class JobRepositoryImpl implements JobRepository {
   final ApiClient _api;
+  final NetworkInfo _networkInfo;
 
-  const JobRepositoryImpl({required ApiClient api}) : _api = api;
+  const JobRepositoryImpl({
+    required ApiClient api,
+    required NetworkInfo networkInfo,
+  })  : _api = api,
+        _networkInfo = networkInfo;
 
   Box get _settingsBox => HiveService.getBox(HiveService.settingsBox);
 
@@ -22,7 +28,9 @@ class JobRepositoryImpl implements JobRepository {
       return data.map((k, v) {
         final key = k.toString();
         if (v is Map) return MapEntry(key, _deepCast(v));
-        if (v is List) return MapEntry(key, v.map((e) => e is Map ? _deepCast(e) : e).toList());
+        if (v is List)
+          return MapEntry(
+              key, v.map((e) => e is Map ? _deepCast(e) : e).toList());
         return MapEntry(key, v);
       });
     }
@@ -45,6 +53,11 @@ class JobRepositoryImpl implements JobRepository {
         requiresPhoto: s['requiresPhoto'] as bool? ?? false,
         isCompleted: s['isCompleted'] as bool? ?? false,
         notes: s['notes'] as String?,
+        section: s['section'] as String? ?? '',
+        inputType: s['inputType'] as String? ?? 'checkbox',
+        inputLabel: s['inputLabel'] as String? ?? '',
+        inputValue: s['inputValue'] as String? ?? '',
+        options: (s['options'] as List<dynamic>?)?.map((o) => o.toString()).toList() ?? [],
         photos: photosRaw.map((p) {
           if (p is String) {
             return PhotoEntity(
@@ -117,6 +130,10 @@ class JobRepositoryImpl implements JobRepository {
     JobStatus? statusFilter,
     String? systemFilter,
   }) async {
+    // If offline, return cache immediately (no 30s timeout wait)
+    if (!await _networkInfo.isConnected) {
+      return _getCachedJobs();
+    }
     try {
       final response = await _api.getJobs(
         status: statusFilter?.apiValue,
@@ -127,45 +144,65 @@ class JobRepositoryImpl implements JobRepository {
       final jobs =
           jobsRaw.map((j) => _parseJob(j as Map<String, dynamic>)).toList();
       // Cache for offline use
-      try { _settingsBox.put('cached_jobs', response.data); } catch (_) {}
+      try {
+        _settingsBox.put('cached_jobs', response.data);
+      } catch (_) {}
       return Right(jobs);
     } on DioException catch (e) {
       // Fallback to Hive cache when offline
-      try {
-        final cached = _settingsBox.get('cached_jobs');
-        if (cached != null) {
-          final data = _deepCast(cached);
-          final jobsRaw = data['jobs'] as List<dynamic>? ?? [];
-          return Right(jobsRaw.map((j) => _parseJob(_deepCast(j))).toList());
-        }
-      } catch (_) {}
-      final msg = e.response?.data?['error'] as String? ?? 'Failed to load jobs';
+      final cached = _getCachedJobs();
+      if (cached.isRight()) return cached;
+      final msg =
+          e.response?.data?['error'] as String? ?? 'Failed to load jobs';
       return Left(ServerFailure(msg));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
   }
 
+  Either<Failure, List<JobEntity>> _getCachedJobs() {
+    try {
+      final cached = _settingsBox.get('cached_jobs');
+      if (cached != null) {
+        final data = _deepCast(cached);
+        final jobsRaw = data['jobs'] as List<dynamic>? ?? [];
+        return Right(jobsRaw.map((j) => _parseJob(_deepCast(j))).toList());
+      }
+    } catch (_) {}
+    return Left(const ServerFailure('No cached jobs available'));
+  }
+
   @override
   Future<Either<Failure, JobEntity>> getJobDetail(String jobId) async {
+    // If offline, return cache immediately (no 30s timeout wait)
+    if (!await _networkInfo.isConnected) {
+      return _getCachedJobDetail(jobId);
+    }
     try {
       final response = await _api.getJobDetail(jobId);
       final data = response.data as Map<String, dynamic>;
       final jobData = data['job'] as Map<String, dynamic>? ?? data;
       // Cache for offline use
-      try { _settingsBox.put('cached_job_$jobId', jobData); } catch (_) {}
+      try {
+        _settingsBox.put('cached_job_$jobId', jobData);
+      } catch (_) {}
       return Right(_parseJob(jobData));
     } on DioException catch (e) {
-      // Fallback to Hive cache when offline
-      try {
-        final cached = _settingsBox.get('cached_job_$jobId');
-        if (cached != null) return Right(_parseJob(_deepCast(cached)));
-      } catch (_) {}
+      final cached = _getCachedJobDetail(jobId);
+      if (cached.isRight()) return cached;
       final msg = e.response?.data?['error'] as String? ?? 'Failed to load job';
       return Left(ServerFailure(msg));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  Either<Failure, JobEntity> _getCachedJobDetail(String jobId) {
+    try {
+      final cached = _settingsBox.get('cached_job_$jobId');
+      if (cached != null) return Right(_parseJob(_deepCast(cached)));
+    } catch (_) {}
+    return Left(const ServerFailure('No cached data available'));
   }
 
   @override

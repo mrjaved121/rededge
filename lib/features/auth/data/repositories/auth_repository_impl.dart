@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/network_info.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -9,12 +10,15 @@ import '../../domain/repositories/auth_repository.dart';
 class AuthRepositoryImpl implements AuthRepository {
   final ApiClient _api;
   final TokenStorage _tokenStorage;
+  final NetworkInfo _networkInfo;
 
   const AuthRepositoryImpl({
     required ApiClient api,
     required TokenStorage tokenStorage,
+    required NetworkInfo networkInfo,
   })  : _api = api,
-        _tokenStorage = tokenStorage;
+        _tokenStorage = tokenStorage,
+        _networkInfo = networkInfo;
 
   UserEntity _parseUser(Map<String, dynamic> data) {
     return UserEntity(
@@ -103,6 +107,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, UserEntity>> getCurrentUser() async {
+    // If offline, return cached user immediately (no timeout wait)
+    if (!await _networkInfo.isConnected) {
+      final cached = await _tokenStorage.getUserData();
+      if (cached != null) return Right(_parseUser(cached));
+      return Left(const AuthFailure('No network and no cached session'));
+    }
     try {
       final response = await _api.getMe();
       final data = response.data as Map<String, dynamic>;
@@ -120,7 +130,8 @@ class AuthRepositoryImpl implements AuthRepository {
       // Offline – use cached user if available
       final cached = await _tokenStorage.getUserData();
       if (cached != null) return Right(_parseUser(cached));
-      return Left(const AuthFailure('Cannot reach server and no cached session'));
+      return Left(
+          const AuthFailure('Cannot reach server and no cached session'));
     } catch (e) {
       final cached = await _tokenStorage.getUserData();
       if (cached != null) return Right(_parseUser(cached));

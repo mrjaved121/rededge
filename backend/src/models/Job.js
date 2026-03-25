@@ -9,6 +9,11 @@ const stepSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   photos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Photo' }],
   completedAt: { type: Date },
+  section: { type: String, default: '' },
+  inputType: { type: String, enum: ['checkbox', 'text', 'number', 'select', 'photo', 'section_header'], default: 'checkbox' },
+  inputLabel: { type: String, default: '' },
+  inputValue: { type: String, default: '' },
+  options: [{ type: String }],
 });
 
 const jobSchema = new mongoose.Schema(

@@ -14,9 +14,9 @@ abstract class PhotoRepository {
   });
 
   Future<Either<Failure, List<PhotoEntity>>> getPhotosForStep(
-      String jobId,
-      String stepId,
-      );
+    String jobId,
+    String stepId,
+  );
 
   Future<Either<Failure, void>> deletePhoto(String photoId);
 }

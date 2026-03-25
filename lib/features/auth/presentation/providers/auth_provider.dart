@@ -149,6 +149,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthState(
           isLoggedIn: true,
           user: data.user,
+          isInitializing: false,
         );
       },
     );

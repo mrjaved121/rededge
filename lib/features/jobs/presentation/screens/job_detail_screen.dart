@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:red_edge_app/features/jobs/presentation/providers/job_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/widgets/app_primary_button.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/widgets/system_chip.dart';
@@ -15,6 +17,7 @@ import '../../domain/entities/job_entity.dart';
 import '../../domain/entities/step_entity.dart';
 import '../../domain/repositories/job_repository.dart';
 import '../providers/step_provider.dart';
+import '../services/pdf_report_service.dart';
 import '../widgets/job_progress_bar.dart';
 
 class JobDetailScreen extends ConsumerWidget {
@@ -39,6 +42,26 @@ class JobDetailScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _generateReport(BuildContext context, JobEntity job) async {
+    try {
+      final pdfBytes = await PdfReportService.generateJobReport(job);
+      if (!context.mounted) return;
+      await Printing.layoutPdf(
+        onLayout: (_) => pdfBytes,
+        name: '${job.title.replaceAll(RegExp(r'[^\w\s]'), '')}_Report',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate report: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildContent(BuildContext context, WidgetRef ref, JobEntity job) {
     return Scaffold(
       body: CustomScrollView(
@@ -52,6 +75,13 @@ class JobDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => context.pop(),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                tooltip: 'Generate PDF Report',
+                onPressed: () => _generateReport(context, job),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: _JobDetailHeader(job: job),
             ),
@@ -76,27 +106,75 @@ class JobDetailScreen extends ConsumerWidget {
             ),
           ),
 
-          // ── Steps List ──
+          // ── Steps List grouped by section ──
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (ctx, i) => _StepCard(
-                  step: job.steps[i],
-                  jobId: jobId,
-                  onTap: () => context.push(
-                    '/jobs/$jobId/steps/${job.steps[i].id}/camera',
-                  ),
-                  onToggle: () {
-                    ref.read(stepActionProvider.notifier).completeStep(
-                          jobId,
-                          job.steps[i].id,
-                        );
-                  },
-                  onCamera: () => context.push(
-                    '/jobs/$jobId/steps/${job.steps[i].id}/camera',
-                  ),
-                ),
+                (ctx, i) {
+                  final step = job.steps[i];
+                  // Show section header when section changes
+                  final showSectionHeader = step.section.isNotEmpty &&
+                      (i == 0 || job.steps[i - 1].section != step.section);
+
+                  void openCamera() async {
+                    await context.push(
+                      '/jobs/$jobId/steps/${step.id}/camera',
+                    );
+                    ref.invalidate(jobDetailProvider(jobId));
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showSectionHeader) ...[
+                        if (i > 0) const SizedBox(height: AppSpacing.md),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Text(
+                            step.section,
+                            style: AppTextStyles.headlineSmall.copyWith(
+                              color: AppColors.primary,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                      _StepCard(
+                        step: step,
+                        jobId: jobId,
+                        onTap: openCamera,
+                        onToggle: () {
+                          ref.read(stepActionProvider.notifier).completeStep(
+                                jobId,
+                                step.id,
+                              );
+                        },
+                        onCamera: openCamera,
+                        onInputSaved: (value) async {
+                          await getIt<ApiClient>().completeStep(
+                            jobId,
+                            step.id,
+                            {'inputValue': value, 'isCompleted': true},
+                          );
+                          ref.invalidate(jobDetailProvider(jobId));
+                        },
+                      ),
+                    ],
+                  );
+                },
                 childCount: job.steps.length,
               ),
             ),
@@ -184,12 +262,13 @@ class _JobDetailHeader extends StatelessWidget {
   }
 }
 
-class _StepCard extends StatelessWidget {
+class _StepCard extends StatefulWidget {
   final StepEntity step;
   final String jobId;
   final VoidCallback onTap;
   final VoidCallback onToggle;
   final VoidCallback onCamera;
+  final Future<void> Function(String)? onInputSaved;
 
   const _StepCard({
     required this.step,
@@ -197,10 +276,35 @@ class _StepCard extends StatelessWidget {
     required this.onTap,
     required this.onToggle,
     required this.onCamera,
+    this.onInputSaved,
   });
 
   @override
+  State<_StepCard> createState() => _StepCardState();
+}
+
+class _StepCardState extends State<_StepCard> {
+  late final TextEditingController _inputCtrl;
+  String? _selectedOption;
+
+  @override
+  void initState() {
+    super.initState();
+    _inputCtrl = TextEditingController(text: widget.step.inputValue);
+    if (widget.step.inputType == 'select' && widget.step.inputValue.isNotEmpty) {
+      _selectedOption = widget.step.inputValue;
+    }
+  }
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final step = widget.step;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       elevation: 0,
@@ -210,7 +314,7 @@ class _StepCard extends StatelessWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        onTap: onTap,
+        onTap: step.hasInput ? null : widget.onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
@@ -221,7 +325,7 @@ class _StepCard extends StatelessWidget {
                 children: [
                   // Checkbox
                   GestureDetector(
-                    onTap: onToggle,
+                    onTap: step.hasInput ? null : widget.onToggle,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 400),
                       transitionBuilder: (child, anim) => ScaleTransition(
@@ -276,6 +380,101 @@ class _StepCard extends StatelessWidget {
                 ],
               ),
 
+              // Input field for text/number types
+              if (step.hasInput) ...[
+                const SizedBox(height: AppSpacing.sm),
+                if (step.inputType == 'select' && step.options.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedOption,
+                        isExpanded: true,
+                        hint: Text(step.inputLabel, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint)),
+                        items: step.options
+                            .map((o) => DropdownMenuItem(value: o, child: Text(o, style: AppTextStyles.bodySmall)))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() => _selectedOption = v);
+                            widget.onInputSaved?.call(v);
+                          }
+                        },
+                      ),
+                    ),
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _inputCtrl,
+                          keyboardType: step.inputType == 'number'
+                              ? TextInputType.number
+                              : TextInputType.text,
+                          style: AppTextStyles.bodySmall,
+                          decoration: InputDecoration(
+                            hintText: step.inputLabel,
+                            hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: AppColors.cardBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: AppColors.cardBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 36,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final val = _inputCtrl.text.trim();
+                            if (val.isNotEmpty) {
+                              widget.onInputSaved?.call(val);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Save', style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (step.inputValue.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${step.inputLabel}: ${step.inputValue}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.completed,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+
               // Photo required banner
               if (step.needsPhoto) ...[
                 const SizedBox(height: AppSpacing.sm),
@@ -325,27 +524,29 @@ class _StepCard extends StatelessWidget {
                 ),
               ],
 
-              // Camera button
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                height: 36,
-                child: OutlinedButton.icon(
-                  onPressed: onCamera,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              // Camera button (only for photo-requiring steps or steps that aren't pure input)
+              if (step.requiresPhoto || !step.hasInput) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  height: 36,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onCamera,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                  label: Text(
-                    step.hasPhoto ? 'Add Photo' : 'Capture Photo',
-                    style: const TextStyle(fontSize: 13),
+                    icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                    label: Text(
+                      step.hasPhoto ? 'Add Photo' : 'Capture Photo',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

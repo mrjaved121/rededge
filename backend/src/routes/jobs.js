@@ -102,11 +102,10 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// POST /api/v1/jobs — create job (admin only)
+// POST /api/v1/jobs — create job (admin or installer)
 router.post(
   '/',
   auth,
-  adminOnly,
   [
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('systemType').notEmpty().withMessage('System type is required'),
@@ -143,6 +142,10 @@ router.post(
           isCompleted: false,
           notes: '',
           photos: [],
+          section: s.section || '',
+          inputType: s.inputType || 'checkbox',
+          inputLabel: s.inputLabel || '',
+          options: s.options || [],
         }));
       } else {
         const template = await ChecklistTemplate.findOne({ systemType });
@@ -155,6 +158,10 @@ router.post(
             isCompleted: false,
             notes: '',
             photos: [],
+            section: s.section || '',
+            inputType: s.inputType || 'checkbox',
+            inputLabel: s.inputLabel || '',
+            options: s.options || [],
           }));
         }
       }
@@ -231,6 +238,10 @@ router.put('/:id', auth, async (req, res) => {
           isCompleted: false,
           notes: '',
           photos: [],
+          section: s.section || '',
+          inputType: s.inputType || 'checkbox',
+          inputLabel: s.inputLabel || '',
+          options: s.options || [],
         }));
       }
     }
@@ -307,6 +318,9 @@ router.patch('/:id/steps/:stepIndex', auth, async (req, res) => {
     if (req.body.notes !== undefined) {
       job.steps[idx].notes = req.body.notes;
     }
+    if (req.body.inputValue !== undefined) {
+      job.steps[idx].inputValue = req.body.inputValue;
+    }
 
     // Update job status based on steps
     const allDone = job.steps.every((s) => s.isCompleted);
@@ -354,6 +368,11 @@ function formatJob(job) {
       notes: s.notes,
       photos: s.photos,
       completedAt: s.completedAt,
+      section: s.section || '',
+      inputType: s.inputType || 'checkbox',
+      inputLabel: s.inputLabel || '',
+      inputValue: s.inputValue || '',
+      options: s.options || [],
     })),
     mediaAttachments: job.mediaAttachments,
     completedSteps,

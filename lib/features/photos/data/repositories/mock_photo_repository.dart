@@ -37,12 +37,11 @@ class MockPhotoRepository implements PhotoRepository {
 
   @override
   Future<Either<Failure, List<PhotoEntity>>> getPhotosForStep(
-      String jobId,
-      String stepId,
-      ) async {
-    final result = _photos
-        .where((p) => p.jobId == jobId && p.stepId == stepId)
-        .toList();
+    String jobId,
+    String stepId,
+  ) async {
+    final result =
+        _photos.where((p) => p.jobId == jobId && p.stepId == stepId).toList();
     return Right(result);
   }
 

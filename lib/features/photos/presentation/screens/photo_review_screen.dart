@@ -55,9 +55,28 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
             SnackBar(content: Text('Failed: ${failure.message}')),
           );
         },
-        (_) {
+        (photo) {
           // Refresh job detail so photos/step status update in UI
           ref.invalidate(jobDetailProvider(widget.args.jobId));
+          // Show feedback if saved offline
+          if (!photo.isSynced) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.cloud_off, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child:
+                          Text('Photo saved locally. Will upload when online.'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
           // Pop back past camera to step list
           context.pop(); // Review
           context.pop(); // Camera
@@ -129,7 +148,8 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                           '${widget.args.gps!.latitude.toStringAsFixed(6)}, '
                           '${widget.args.gps!.longitude.toStringAsFixed(6)}',
                           style: AppTextStyles.code.copyWith(fontSize: 12),
-                        ),                        if (widget.args.address != null) ...[  
+                        ),
+                        if (widget.args.address != null) ...[
                           const SizedBox(height: 2),
                           Text(
                             widget.args.address!,
@@ -137,7 +157,8 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                               color: AppColors.completed,
                             ),
                           ),
-                        ],                      ],
+                        ],
+                      ],
                     ),
                   ],
                 ),

@@ -56,25 +56,27 @@ void setupGetIt() {
 
   // ── Repositories ──────────────────────────────────────
   if (useMockData) {
-    getIt.registerLazySingleton<AuthRepository>(
-      () => MockAuthRepository(),
-    );
-    getIt.registerLazySingleton<JobRepository>(
-      () => MockJobRepository(),
-    );
-    getIt.registerLazySingleton<PhotoRepository>(
-      () => MockPhotoRepository(),
-    );
+    // getIt.registerLazySingleton<AuthRepository>(
+    //   () => MockAuthRepository(),
+    // );
+    // getIt.registerLazySingleton<JobRepository>(
+    //   () => MockJobRepository(),
+    // );
+    // getIt.registerLazySingleton<PhotoRepository>(
+    //   () => MockPhotoRepository(),
+    // );
   } else {
     getIt.registerLazySingleton<AuthRepository>(
       () => AuthRepositoryImpl(
         api: getIt<ApiClient>(),
         tokenStorage: getIt<TokenStorage>(),
+        networkInfo: getIt<NetworkInfo>(),
       ),
     );
     getIt.registerLazySingleton<JobRepository>(
       () => JobRepositoryImpl(
         api: getIt<ApiClient>(),
+        networkInfo: getIt<NetworkInfo>(),
       ),
     );
     getIt.registerLazySingleton<PhotoRepository>(
