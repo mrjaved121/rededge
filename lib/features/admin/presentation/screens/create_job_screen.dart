@@ -13,6 +13,8 @@ import '../../../../di/injection.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../jobs/domain/repositories/job_repository.dart';
 import '../providers/admin_provider.dart';
+import '../../../jobs/presentation/providers/job_provider.dart'
+    show jobsNotifierProvider;
 
 class CreateJobScreen extends ConsumerStatefulWidget {
   const CreateJobScreen({super.key});
@@ -260,6 +262,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       },
       (_) {
         ref.invalidate(adminJobsProvider);
+        ref.invalidate(jobsNotifierProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -425,10 +428,12 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.cardRadius),
                         border: Border.all(color: AppColors.cardBorder),
                       ),
                       child: DropdownButtonHideUnderline(
@@ -441,12 +446,14 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                               value: null,
                               child: Text('Unassigned'),
                             ),
-                            ...installers.map((u) => DropdownMenuItem<UserEntity?>(
-                                  value: u,
-                                  child: Text('${u.name} (${u.email})'),
-                                )),
+                            ...installers
+                                .map((u) => DropdownMenuItem<UserEntity?>(
+                                      value: u,
+                                      child: Text('${u.name} (${u.email})'),
+                                    )),
                           ],
-                          onChanged: (v) => setState(() => _selectedInstaller = v),
+                          onChanged: (v) =>
+                              setState(() => _selectedInstaller = v),
                         ),
                       ),
                     ),
@@ -528,7 +535,9 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                 ),
               ],
             ),
-            if (_selectedSystem != null && _steps.isNotEmpty && _steps.first.section.isNotEmpty)
+            if (_selectedSystem != null &&
+                _steps.isNotEmpty &&
+                _steps.first.section.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Text(

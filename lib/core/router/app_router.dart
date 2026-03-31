@@ -6,6 +6,7 @@ import 'package:red_edge_app/features/admin/presentation/screens/admin_job_detai
 import 'package:red_edge_app/features/admin/presentation/screens/create_job_screen.dart';
 import 'package:red_edge_app/features/admin/presentation/screens/edit_job_screen.dart';
 import 'package:red_edge_app/features/admin/presentation/screens/installer_management_screen.dart';
+import 'package:red_edge_app/features/admin/presentation/screens/checklist_management_screen.dart';
 import 'package:red_edge_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:red_edge_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:red_edge_app/features/auth/presentation/screens/signup_screen.dart';
@@ -172,6 +173,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (ctx, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const InstallerManagementScreen(),
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+      GoRoute(
+        path: '/admin/checklists',
+        pageBuilder: (ctx, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const ChecklistManagementScreen(),
           transitionsBuilder: _slideTransition,
         ),
       ),

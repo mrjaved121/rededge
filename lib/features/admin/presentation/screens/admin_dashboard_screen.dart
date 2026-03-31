@@ -57,6 +57,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.checklist_rtl, color: Colors.white),
+            onPressed: () => context.push('/admin/checklists'),
+            tooltip: 'Checklist Templates',
+          ),
+          IconButton(
             icon: const Icon(Icons.people_outline, color: Colors.white),
             onPressed: () => context.push('/admin/installers'),
             tooltip: 'Manage Installers',
