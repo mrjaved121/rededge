@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
@@ -96,16 +97,34 @@ class ImageUtils {
     canvas.drawParagraph(paragraph, position);
   }
 
-  /// Compress image to target quality (0.0 to 1.0)
-  static Future<Uint8List> compress(
-      Uint8List bytes, {
-        int quality = 85,
-      }) async {
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final data = await frame.image.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    return data!.buffer.asUint8List();
+  /// Compress image file to JPEG at given quality (0–100) and cap dimensions.
+  /// Overwrites the original file with the compressed version.
+  static Future<String> compressFile(
+    String filePath, {
+    int quality = 80,
+    int maxWidth = 1920,
+    int maxHeight = 1920,
+  }) async {
+    try {
+      final targetPath =
+          filePath.replaceAll(RegExp(r'\.\w+$'), '_compressed.jpg');
+      final result = await FlutterImageCompress.compressAndGetFile(
+        filePath,
+        targetPath,
+        quality: quality,
+        minWidth: maxWidth,
+        minHeight: maxHeight,
+        format: CompressFormat.jpeg,
+      );
+      if (result != null) {
+        // Overwrite original with compressed version
+        await File(result.path).copy(filePath);
+        await File(result.path).delete();
+      }
+      return filePath;
+    } catch (_) {
+      // If compression fails, return original — don't lose the photo
+      return filePath;
+    }
   }
 }

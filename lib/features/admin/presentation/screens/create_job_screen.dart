@@ -11,6 +11,7 @@ import '../../../../core/network/api_config.dart';
 import '../../../../core/widgets/app_primary_button.dart';
 import '../../../../di/injection.dart';
 import '../../../auth/domain/entities/user_entity.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../jobs/domain/repositories/job_repository.dart';
 import '../providers/admin_provider.dart';
 import '../../../jobs/presentation/providers/job_provider.dart'
@@ -248,7 +249,9 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       'scheduledDate': _scheduledDate.toIso8601String(),
       'steps': stepsData,
       if (description.isNotEmpty) 'description': description,
-      if (_selectedInstaller != null) 'assignedTo': _selectedInstaller!.id,
+      if (_selectedInstaller != null) 'assignedTo': _selectedInstaller!.id
+      else if (ref.read(currentUserProvider)?.isInstaller == true)
+        'assignedTo': ref.read(currentUserProvider)!.id,
     };
 
     final result = await getIt<JobRepository>().createJob(data);
@@ -278,6 +281,8 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider);
+    final isInstaller = currentUser?.isInstaller ?? false;
     final installersAsync = ref.watch(installersProvider);
     final systemTypesAsync = ref.watch(systemTypesProvider);
 
@@ -423,6 +428,26 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
             // Assign to Installer
             _buildSectionLabel('Assign to Installer'),
             const SizedBox(height: AppSpacing.sm),
+            if (isInstaller)
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person, color: AppColors.primary, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      '${currentUser!.name} (${currentUser.email})',
+                      style: AppTextStyles.bodyLarge,
+                    ),
+                  ],
+                ),
+              )
+            else
             installersAsync.when(
               data: (installers) => Row(
                 children: [

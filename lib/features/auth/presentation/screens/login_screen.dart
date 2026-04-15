@@ -106,9 +106,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 children: [
-                  const SizedBox(height: AppSpacing.xl),
                   _buildLogoSection(roleLabel),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
                   _buildFeaturePills(),
                   const SizedBox(height: AppSpacing.xl),
                   _buildLoginCard(authState),
@@ -135,31 +134,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Column(
       children: [
         Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Text(
-              'RE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+          width: 90,
+          height: 100,
+          
+          child:  Center(
+            child: Image.asset(
+    'assets/images/red_edge_app_logo.jpg', // apna image path yahan do
+    width: 90, // optional
+    height: 100, // optional
+  ),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
         Text('Red Edge', style: AppTextStyles.headlineLarge),
         const SizedBox(height: AppSpacing.xs),
         Text(roleLabel, style: AppTextStyles.bodyMedium),

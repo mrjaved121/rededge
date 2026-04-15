@@ -66,18 +66,7 @@ class SettingsScreen extends ConsumerWidget {
               ref: ref,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-
-          // App Info
-          _SectionCard(
-            title: 'App Information',
-            icon: Icons.info_outline,
-            children: [
-              _InfoRow(label: 'Version', value: '1.0.0'),
-              _InfoRow(label: 'Build', value: '2026.03.01'),
-              _InfoRow(label: 'Platform', value: Theme.of(context).platform.name),
-            ],
-          ),
+          
           const SizedBox(height: AppSpacing.md),
 
           // Logout

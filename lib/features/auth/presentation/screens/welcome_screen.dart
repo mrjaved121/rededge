@@ -50,28 +50,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 const SizedBox(height: 60),
                 // Logo
                 Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'RE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                  width: 90,
+                  height: 100,
+                  child: Center(
+                    child: Image.asset(
+                        'assets/images/red_edge_app_logo.jpg', // apna image path yahan do
+                            width: 100, // optional
+                            height: 100, // optional
+                        ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),

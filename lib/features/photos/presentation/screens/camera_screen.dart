@@ -106,6 +106,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       final savedPath =
           await PhotoLocalDataSource.savePhotoFile(bytes, photoId);
 
+      // Compress image (JPEG quality 80, max 1920px)
+      await ImageUtils.compressFile(savedPath);
+
       // Apply watermark
       await ImageUtils.applyWatermark(savedPath, _gpsPosition);
 

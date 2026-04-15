@@ -25,4 +25,12 @@ class UserEntity {
     }
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserEntity && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

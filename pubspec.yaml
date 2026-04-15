@@ -33,6 +33,7 @@ dependencies:
   geolocator: ^12.0.0
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
+  flutter_image_compress: ^2.3.0
 
   # UI
   shimmer: ^3.0.0
@@ -53,6 +54,7 @@ dependencies:
   # Code Generation Annotations
   freezed_annotation: ^2.4.1
   json_annotation: ^4.9.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +70,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # assets:
-  #   - assets/images/
+  assets:
+    - assets/images/
   #   - assets/icons/
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/red_edge_app_logo.jpg" # Aapki file ka path
+  adaptive_icon_background: "#FFFFFF" # Android ke liye background color (Green ke sath white accha lagega)
+  adaptive_icon_foreground: "assets/images/red_edge_app_logo.jpg"  

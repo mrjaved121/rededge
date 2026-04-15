@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "449982728538",
+    "project_id": "aslibaray-f20ed",
+    "storage_bucket": "aslibaray-f20ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:449982728538:android:ee3e786a6f9ca8c4388b63",
+        "android_client_info": {
+          "package_name": "com.example.suprapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMSfgpApQOGCcC4shiHGndaCocFmuF6Aw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -7,12 +7,12 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 class AppBottomNav extends ConsumerWidget {
   const AppBottomNav({super.key});
 
-  int _currentIndex(BuildContext context, bool isAdmin) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/settings')) return isAdmin ? 2 : 1;
-    if (location.startsWith('/admin')) return 1;
-    return 0; // /jobs is default
-  }
+int _currentIndex(BuildContext context, bool isAdmin) {
+  final location = GoRouterState.of(context).uri.path;
+
+  if (location.startsWith('/settings')) return 1;
+  return 0;
+}
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,30 +35,33 @@ class AppBottomNav extends ConsumerWidget {
         child: SizedBox(
           height: 64,
           child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.work_outline,
-                activeIcon: Icons.work,
-                label: 'Jobs',
-                isSelected: index == 0,
-                onTap: () => context.go(isAdmin ? '/admin' : '/jobs'),
-              ),
-              if (isAdmin)
-                _NavItem(
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard,
-                  label: 'Admin',
-                  isSelected: index == 1,
-                  onTap: () => context.go('/admin'),
-                ),
-              _NavItem(
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings,
-                label: 'Settings',
-                isSelected: isAdmin ? index == 2 : index == 1,
-                onTap: () => context.go('/settings'),
-              ),
-            ],
+           children: [
+  if (!isAdmin)
+    _NavItem(
+      icon: Icons.work_outline,
+      activeIcon: Icons.work,
+      label: 'Jobs',
+      isSelected: index == 0,
+      onTap: () => context.go('/jobs'),
+    ),
+
+  if (isAdmin)
+    _NavItem(
+      icon: Icons.dashboard_outlined,
+      activeIcon: Icons.dashboard,
+      label: 'Admin',
+      isSelected: index == 0,
+      onTap: () => context.go('/admin'),
+    ),
+
+  _NavItem(
+    icon: Icons.settings_outlined,
+    activeIcon: Icons.settings,
+    label: 'Settings',
+    isSelected: isAdmin ? index == 1 : index == 1,
+    onTap: () => context.go('/settings'),
+  ),
+],  
           ),
         ),
       ),

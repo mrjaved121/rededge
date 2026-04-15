@@ -311,31 +311,11 @@ class _SplashScreen extends StatelessWidget {
                 ],
               ),
               child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'RED',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4,
-                        height: 1,
-                      ),
-                    ),
-                    Text(
-                      'EDGE',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
+                child:Image.asset(
+    'assets/images/red_edge_app_logo.jpg', // apna image path yahan do
+    width: 100, // optional
+    height: 100, // optional
+  ),
               ),
             ),
             const SizedBox(height: 32),
