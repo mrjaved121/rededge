@@ -2,8 +2,8 @@ abstract final class ApiConfig {
   // For real device: use your PC's local IP (phone must be on same Wi-Fi)
   // For Android emulator: use 10.0.2.2
   // For iOS simulator: use localhost
-  static const String localUrl = 'https://rededge-xtmd.onrender.com/api/v1';
-  static const String prodBaseUrl = 'https://rededge-xtmd.onrender.com/api/v1';
+  static const String localUrl = 'https://jellyfish-app-fs8p4.ondigitalocean.app/api/v1';
+  static const String prodBaseUrl = 'https://jellyfish-app-fs8p4.ondigitalocean.app/api/v1';
 
   // Google Maps / Places API key — replace with your actual key
   static const String googleMapsApiKey =
