@@ -286,6 +286,7 @@ class _StepCard extends StatefulWidget {
 class _StepCardState extends State<_StepCard> {
   late final TextEditingController _inputCtrl;
   String? _selectedOption;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -300,6 +301,25 @@ class _StepCardState extends State<_StepCard> {
   void dispose() {
     _inputCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveInput(String value) async {
+    if (value.isEmpty || _isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      await widget.onInputSaved?.call(value);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save — check your connection and try again'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -419,11 +439,7 @@ class _StepCardState extends State<_StepCard> {
                               : TextInputType.text,
                           style: AppTextStyles.bodySmall,
                           textInputAction: TextInputAction.done,
-                          onSubmitted: (val) {
-                            if (val.trim().isNotEmpty) {
-                              widget.onInputSaved?.call(val.trim());
-                            }
-                          },
+                          onSubmitted: (val) => _saveInput(val.trim()),
                           decoration: InputDecoration(
                             hintText: step.inputLabel,
                             hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
@@ -448,23 +464,33 @@ class _StepCardState extends State<_StepCard> {
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
-                        height: 36,
+                        height: 44,
+                        width: 72,
                         child: ElevatedButton(
-                          onPressed: () {
-                            final val = _inputCtrl.text.trim();
-                            if (val.isNotEmpty) {
-                              widget.onInputSaved?.call(val);
-                            }
-                          },
+                          onPressed: _isSaving
+                              ? null
+                              : () => _saveInput(_inputCtrl.text.trim()),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            disabledBackgroundColor:
+                                AppColors.primary.withOpacity(0.6),
+                            padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text('Save', style: TextStyle(fontSize: 13)),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Save',
+                                  style: TextStyle(fontSize: 13)),
                         ),
                       ),
                     ],
