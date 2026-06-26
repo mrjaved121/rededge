@@ -418,6 +418,12 @@ class _StepCardState extends State<_StepCard> {
                               ? TextInputType.number
                               : TextInputType.text,
                           style: AppTextStyles.bodySmall,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (val) {
+                            if (val.trim().isNotEmpty) {
+                              widget.onInputSaved?.call(val.trim());
+                            }
+                          },
                           decoration: InputDecoration(
                             hintText: step.inputLabel,
                             hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
@@ -688,25 +694,50 @@ class _CompleteJobButton extends ConsumerWidget {
   void _completeJob(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Complete Installation?'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Submit for Approval?'),
         content: const Text(
-          'This will mark the installation as completed. This action cannot be undone.',
+          'All steps are done. This will send the job to admin for review.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.pop();
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final result = await getIt<JobRepository>()
+                  .updateJobStatus(job.id, 'needs_approval');
+              result.fold(
+                (failure) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed: ${failure.message}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                },
+                (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Job submitted for admin approval!'),
+                        backgroundColor: AppColors.completed,
+                      ),
+                    );
+                    context.pop();
+                  }
+                },
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.completed,
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Complete'),
+            child: const Text('Submit for Approval'),
           ),
         ],
       ),
