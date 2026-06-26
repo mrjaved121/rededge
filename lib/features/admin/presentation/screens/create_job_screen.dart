@@ -37,6 +37,8 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   DateTime _scheduledDate = DateTime.now().add(const Duration(days: 1));
   bool _isLoading = false;
   bool _isLoadingTemplate = false;
+  bool _templateLoaded = false;
+  bool _showSteps = false;
   String? _errorMessage;
 
   // Custom steps defined by admin
@@ -182,13 +184,20 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         _steps.add(_StepDraft(title: '', description: '', requiresPhoto: true));
       }
 
-      if (mounted) setState(() => _isLoadingTemplate = false);
+      if (mounted) setState(() {
+        _isLoadingTemplate = false;
+        _templateLoaded = true;
+        _showSteps = false;
+      });
     } catch (_) {
       // No template found — keep existing steps or add a blank one
       if (_steps.isEmpty) {
         _steps.add(_StepDraft(title: '', description: '', requiresPhoto: true));
       }
-      if (mounted) setState(() => _isLoadingTemplate = false);
+      if (mounted) setState(() {
+        _isLoadingTemplate = false;
+        _templateLoaded = false;
+      });
     }
   }
 
@@ -551,31 +560,74 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                       color: AppColors.primary,
                     ),
                   ),
-                TextButton.icon(
-                  onPressed: _addStep,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Step'),
-                  style:
-                      TextButton.styleFrom(foregroundColor: AppColors.primary),
-                ),
+                if (!_templateLoaded)
+                  TextButton.icon(
+                    onPressed: _addStep,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Step'),
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary),
+                  ),
               ],
             ),
-            if (_selectedSystem != null &&
-                _steps.isNotEmpty &&
-                _steps.first.section.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Text(
-                  '${_steps.length} steps loaded from template',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.completed,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
             const SizedBox(height: AppSpacing.sm),
 
-            ...List.generate(_steps.length, (i) => _buildStepEditor(i)),
+            if (_templateLoaded) ...[
+              // ── Template summary banner ──
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.completed.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                  border: Border.all(
+                      color: AppColors.completed.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        color: AppColors.completed, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '${_steps.length} steps loaded from template',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.completed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          setState(() => _showSteps = !_showSteps),
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(60, 32)),
+                      child: Text(_showSteps ? 'Hide' : 'Review'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (_showSteps) ...[
+                ...List.generate(_steps.length, (i) => _buildStepEditor(i)),
+                const SizedBox(height: AppSpacing.xs),
+              ],
+              // Add custom step button
+              OutlinedButton.icon(
+                onPressed: _addStep,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Custom Step'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  minimumSize: const Size(double.infinity, 44),
+                ),
+              ),
+            ] else ...[
+              ...List.generate(_steps.length, (i) => _buildStepEditor(i)),
+            ],
 
             const SizedBox(height: AppSpacing.sm),
 
