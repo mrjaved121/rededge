@@ -5,6 +5,10 @@ abstract final class ApiConfig {
   static const String localUrl = 'https://jellyfish-app-fs8p4.ondigitalocean.app/api/v1';
   static const String prodBaseUrl = 'https://jellyfish-app-fs8p4.ondigitalocean.app/api/v1';
 
+  // Web dashboard for adding/removing machines and uploading Excel checklist sheets
+  static const String checklistManagerUrl =
+      'https://jellyfish-app-fs8p4.ondigitalocean.app/checklist-manager/';
+
   // Google Maps / Places API key — replace with your actual key
   static const String googleMapsApiKey =
       'AIzaSyCHu2P393o5K6fOd6LI_T62YQc5OnhvR1A';

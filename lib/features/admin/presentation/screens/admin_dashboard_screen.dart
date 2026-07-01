@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/network/api_config.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/widgets/system_chip.dart';
@@ -66,6 +68,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             onPressed: () => context.push('/admin/installers'),
             tooltip: 'Manage Installers',
           ),
+          IconButton(
+            icon: const Icon(Icons.table_chart_outlined, color: Colors.white),
+            onPressed: () => _openChecklistManager(context),
+            tooltip: 'Excel Checklist Manager',
+          ),
         ],
       ),
       body: jobsAsync.when(
@@ -98,6 +105,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
       bottomNavigationBar: const AppBottomNav(),
     );
+  }
+
+  Future<void> _openChecklistManager(BuildContext context) async {
+    final uri = Uri.parse(ApiConfig.checklistManagerUrl);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the Checklist Manager')),
+      );
+    }
   }
 
   Widget _buildContent(List<JobEntity> allJobs) {
